@@ -17,10 +17,57 @@ This repository contains the complete deployment of Stack4Things (S4T) integrate
 - [Communication Protocols](#communication-protocols)
 - [Getting Help](#getting-help)
 
+## Reproducibility Guide
+
+This section complements the rest of the document with the exact preparation steps and an honest account of what was verified.
+
+### What this repository is
+
+- `stack4things-improved/`: current deployment of the Stack4Things (IoTronic) stack on k3s: MariaDB, RabbitMQ, Crossbar, IoTronic conductor/wagent/UI/wstun, Lightning Rod, Keystone, Keycloak (OIDC), Istio gateways, MetalLB.
+- `crossplane-provider/`: Go source (module `github.com/crossplane/provider-s4t`, Go 1.21) of a Crossplane provider exposing Stack4Things boards, plugins, services, ports, fleets, webservices and sites as Kubernetes CRDs (`iot.s4t.crossplane.io/v1alpha1`).
+- `stack4things/`: legacy deployment, kept for reference.
+
+### Requirements
+
+| Component | Version / note |
+|---|---|
+| Linux host | with `curl`, `git`, `openssl`, `bash` |
+| k3s | recent release (installed by the commands in Quick Start) |
+| kubectl, Helm 3 | any recent version |
+| MetalLB | v0.13.10 (as used in Quick Start) |
+| Istio | Helm charts `base`, `istiod`, `gateway` |
+| Crossplane | installed by `deploy-complete-improved.sh` |
+| Go | 1.21+ only to build/test the provider |
+| Docker + Docker Compose | only for the compose-based legacy stack |
+
+### Preparation steps that are not committed (secrets and binaries)
+
+The repository intentionally contains no credentials, TLS keys or compiled binaries.
+
+1. Legacy stack: `cd stack4things && cp .env.example .env`, then edit every password. The values in `.env.example` are public lab defaults and must not be used on shared hosts.
+2. Keycloak TLS certificate: generated automatically by `stack4things-improved/scripts/deploy-keycloak-keystone.sh` (self-signed, via `openssl`) when `keycloak-config/certs/keycloak.{crt,key}` are missing. `san.cnf` is kept as a template for manual generation.
+3. Keystone OIDC client secret: the realm file and `wsgi-keystone.conf` contain the placeholder `__KEYSTONE_CLIENT_SECRET__`. The deploy script substitutes the value of the `KEYSTONE_CLIENT_SECRET` environment variable (or a random one from `openssl rand -hex 16`) into temporary copies before creating the ConfigMaps. Export your own value to keep it stable across runs. The Keycloak realm is imported only on first start, so redeploy Keycloak after changing it.
+4. RBAC operator: its sources are not part of this repository (the former git submodule pointer was broken). Provide them in `stack4things-improved/rbac-operator/` or run `RBAC_OPERATOR_REPO=<git url> ./scripts/deploy-rbac-operator.sh`.
+5. Provider binary: build it with `make -C crossplane-provider build` (uses the vendored `build/` makelib); `crossplane-provider/provider` and `bin/` are git-ignored.
+
+### Verified in this environment
+
+- All shell scripts pass `bash -n`; all Python files compile; all Kubernetes/CRD YAML files in `yaml_file/`, `examples/`, `metalLB/` and `crossplane-provider/package/crds/` parse as valid YAML.
+- Compose files of both stacks parse with `docker compose config` (variables must be provided through `.env`).
+
+### Not verified in this environment
+
+Everything that needs a cluster or other tooling: k3s/Istio/MetalLB installation, the full `deploy-complete-improved.sh` run, Crossplane provider install, Keycloak/Keystone SSO flow, board/plugin injection, RBAC operator, and the provider's Go build and tests (no Go toolchain available here).
+
+### Security notes
+
+- Config files such as `conf_*/iotronic.conf` and the ConfigMaps still carry lab default passwords (`unime`, `s4t`, `admin`, `password`): treat them as placeholders and change them before exposing anything.
+- `OIDCSSLValidateServer Off` in `wsgi-keystone.conf` disables TLS validation towards Keycloak: acceptable only with the self-signed lab certificate.
+
 ## Repository Structure
 
 ```
-s4t-crossplane-deployment/
+stack4things-crossplane-deployment/
 ├── README.md                          # This file - main documentation
 ├── stack4things-improved/             # Main deployment directory
 │   ├── README.md                      # Detailed deployment guide
@@ -42,7 +89,7 @@ s4t-crossplane-deployment/
 │   │   ├── keystone-deployment.yaml   # Keystone deployment
 │   │   └── ...
 │   ├── keycloak-keystone-integration/ # Keycloak and Keystone configurations
-│   ├── rbac-operator/                 # RBAC Operator source code
+│   ├── rbac-operator/                 # RBAC Operator sources (not included, see Reproducibility Guide)
 │   └── ...
 ├── crossplane-provider/               # Crossplane Provider for Stack4Things
 │   ├── README.md                      # Provider documentation

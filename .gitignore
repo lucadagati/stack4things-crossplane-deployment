@@ -23,3 +23,17 @@ Thumbs.db
 
 # Package temp
 package-tmp/
+
+# Secrets and generated material
+.env
+*.key
+*.csr
+*.pem
+kubeconfig*
+stack4things-improved/keycloak-keystone-integration/keycloak-config/certs/*.crt
+
+# Compiled provider binaries and editor backups
+/crossplane-provider/provider
+*.bak
+*.backup
+/stack4things-improved/rbac-operator/

@@ -28,9 +28,15 @@ else
 fi
 
 # Verificare che il repository rbac-operator esista
-if [ ! -d "$RBAC_OPERATOR_DIR" ]; then
-    echo -e "${RED}ERROR: Directory rbac-operator non trovata in $RBAC_OPERATOR_DIR${NC}"
-    exit 1
+# (the operator sources are not part of this repository: set RBAC_OPERATOR_REPO to a git URL to clone them)
+if [ ! -f "$RBAC_OPERATOR_DIR/Makefile" ]; then
+    if [ -n "${RBAC_OPERATOR_REPO:-}" ]; then
+        rm -rf "$RBAC_OPERATOR_DIR"
+        git clone "$RBAC_OPERATOR_REPO" "$RBAC_OPERATOR_DIR" || exit 1
+    else
+        echo -e "${RED}ERROR: rbac-operator sources not found in $RBAC_OPERATOR_DIR (set RBAC_OPERATOR_REPO=<git url>)${NC}"
+        exit 1
+    fi
 fi
 
 cd "$RBAC_OPERATOR_DIR"

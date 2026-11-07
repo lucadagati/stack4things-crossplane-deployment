@@ -30,7 +30,7 @@
       "protocol": "openid-connect",
 
       "publicClient": false,
-      "secret": "6OWR6HQAqfWQ2AES8S3uSsW3O52Mw4RJ",
+      "secret": "__KEYSTONE_CLIENT_SECRET__",
 
       "redirectUris": [
         "http://localhost:5000/v3/auth/OS-FEDERATION/websso/mapped/redirect"

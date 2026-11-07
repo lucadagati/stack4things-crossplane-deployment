@@ -68,6 +68,13 @@ if [ ! -f "$KEYCLOAK_CERTS_DIR/keycloak.crt" ] || [ ! -f "$KEYCLOAK_CERTS_DIR/ke
     }
 fi
 
+# Client secret shared by the Keycloak realm and Keystone mod_auth_openidc (never committed)
+KEYSTONE_CLIENT_SECRET="${KEYSTONE_CLIENT_SECRET:-$(openssl rand -hex 16)}"
+RENDER_DIR="$(mktemp -d)"
+trap 'rm -rf "$RENDER_DIR"' EXIT
+sed "s/__KEYSTONE_CLIENT_SECRET__/${KEYSTONE_CLIENT_SECRET}/g" "$KEYCLOAK_REALM_FILE" > "$RENDER_DIR/stack4things-realm.json"
+KEYCLOAK_REALM_FILE="$RENDER_DIR/stack4things-realm.json"
+
 kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
 kubectl create configmap keycloak-certs -n keycloak \
     --from-file="$KEYCLOAK_CERTS_DIR/keycloak.crt" \
@@ -177,6 +184,8 @@ if [ ! -f "$KEYSTONE_CONFIG_DIR/wsgi-keystone.conf" ]; then
 EOF
 fi
 
+sed "s/__KEYSTONE_CLIENT_SECRET__/${KEYSTONE_CLIENT_SECRET}/g" "$KEYSTONE_CONFIG_DIR/wsgi-keystone.conf" > "$RENDER_DIR/wsgi-keystone.conf"
+
 kubectl create namespace keystone --dry-run=client -o yaml | kubectl apply -f -
 kubectl create configmap keystone-config -n keystone \
     --from-file="$KEYSTONE_CONFIG_DIR/keystone.conf" \
@@ -188,7 +197,7 @@ kubectl create configmap keystone-sso -n keystone \
     --from-file="$KEYSTONE_CONFIG_DIR/sso_callback.html" \
     --dry-run=client -o yaml | kubectl apply -f -
 kubectl create configmap keystone-wsgi -n keystone \
-    --from-file="$KEYSTONE_CONFIG_DIR/wsgi-keystone.conf" \
+    --from-file="$RENDER_DIR/wsgi-keystone.conf" \
     --dry-run=client -o yaml | kubectl apply -f -
 
 echo -e "${GREEN}✔ ConfigMap Keystone creati${NC}"
